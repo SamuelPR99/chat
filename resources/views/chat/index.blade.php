@@ -55,25 +55,16 @@
                 </form>
             </div>
         </div>
-    </div>
-
+    </div>    
+    
     <script>
-        const room = '{{ $room }}';
-        const userId = {{ auth()->id() }};
-        const userName = '{{ auth()->user()->name }}';
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    </script>    <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const room = '{{ $room }}';
+            const userId = {{ auth()->id() }};
+            const userName = '{{ auth()->user()->name }}';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
             console.log('Iniciando chat...', { room, userId, userName });
-            
-            // Verificar si Echo está disponible
-            if (typeof window.Echo === 'undefined') {
-                console.error('Echo no está disponible. Verifica que los assets se hayan compilado correctamente.');
-                alert('Error: Echo no está disponible. Refresca la página o contacta al administrador.');
-                return;
-            }
-            
-            console.log('Echo disponible:', window.Echo);
 
             const messagesContainer = document.getElementById('messages-container');
             const messageForm = document.getElementById('message-form');
@@ -81,9 +72,8 @@
             const sendButton = document.getElementById('send-button');
             const userCount = document.getElementById('user-count');
 
-            // Unirse al canal del chat
-            console.log('Intentando unirse al canal:', `chat.${room}`);
-            const channel = window.Echo.join(`chat.${room}`)
+            // 🚀 Conectar al canal usando Echo de forma simple
+            Echo.join(`chat.${room}`)
                 .here((users) => {
                     userCount.textContent = users.length;
                     console.log('Usuarios conectados:', users);
@@ -91,18 +81,14 @@
                 .joining((user) => {
                     userCount.textContent = parseInt(userCount.textContent) + 1;
                     addSystemMessage(`${user.name} se unió al chat`);
-                    console.log('Usuario se unió:', user);
                 })
                 .leaving((user) => {
                     userCount.textContent = parseInt(userCount.textContent) - 1;
                     addSystemMessage(`${user.name} dejó el chat`);
-                    console.log('Usuario se fue:', user);
-                })                .listen('.message.sent', (e) => {
-                    console.log('🎉 Mensaje recibido via broadcasting:', e);
-                    addMessage(e);
                 })
-                .error((error) => {
-                    console.error('Error en el canal:', error);
+                .listen('MessageSent', (e) => {
+                    console.log('💬 Nuevo mensaje:', e);
+                    addMessage(e);
                 });
 
             // Enviar mensaje
@@ -112,7 +98,6 @@
                 const content = messageInput.value.trim();
                 if (!content) return;
 
-                // Deshabilitar el botón mientras se envía
                 sendButton.disabled = true;
                 sendButton.textContent = 'Enviando...';
 
@@ -123,18 +108,10 @@
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({
-                        content: content,
-                        room: room
-                    })
+                    body: JSON.stringify({ content, room })
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta del servidor');
-                    }
-                    return response.json();                })
+                .then(response => response.json())
                 .then(data => {
-                    console.log('✅ Mensaje enviado exitosamente:', data);
                     if (data.success) {
                         messageInput.value = '';
                         messageInput.focus();
@@ -142,10 +119,9 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error al enviar el mensaje. Por favor, intenta de nuevo.');
+                    alert('Error al enviar el mensaje');
                 })
                 .finally(() => {
-                    // Rehabilitar el botón
                     sendButton.disabled = false;
                     sendButton.textContent = 'Enviar';
                 });
@@ -168,10 +144,10 @@
                     </div>
                     <div class="flex-1">
                         <div class="flex items-center space-x-2">
-                            <span class="font-medium text-gray-900">${escapeHtml(data.user.name)}</span>
+                            <span class="font-medium text-gray-900">${data.user.name}</span>
                             <span class="text-xs text-gray-500">${time}</span>
                         </div>
-                        <p class="text-gray-700 mt-1 bg-white p-2 rounded-lg shadow-sm">${escapeHtml(data.content)}</p>
+                        <p class="text-gray-700 mt-1 bg-white p-2 rounded-lg shadow-sm">${data.content}</p>
                     </div>
                 `;
 
@@ -188,19 +164,11 @@
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
 
-            function escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
-            // Auto-scroll al final al cargar
+            // Auto-scroll y focus inicial
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            // Focus en el input al cargar
             messageInput.focus();
 
-            // Enviar mensaje con Enter
+            // Enviar con Enter
             messageInput.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

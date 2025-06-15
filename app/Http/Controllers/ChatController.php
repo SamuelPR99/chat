@@ -33,14 +33,9 @@ class ChatController extends Controller
             'user_id' => Auth::id(),
             'content' => $request->content,
             'room' => $request->room,
-        ]);        $message->load('user');
-
-        \Log::info('Disparando evento MessageSent', [
-            'message_id' => $message->id,
-            'user_id' => Auth::id(),
-            'room' => $message->room,
-            'content' => $message->content
         ]);
+
+        $message->load('user');
 
         broadcast(new MessageSent($message, Auth::user()));
 

@@ -22,13 +22,7 @@ class MessageSent implements ShouldBroadcast
     public function __construct(
         public Message $message,
         public User $user
-    ) {
-        \Log::info('Evento MessageSent creado', [
-            'message_id' => $this->message->id,
-            'user_id' => $this->user->id,
-            'room' => $this->message->room
-        ]);
-    }
+    ) {}
 
     /**
      * Get the channels the event should broadcast on.
